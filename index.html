@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>XAU/USD // GOLD TERMINAL</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --void:#05070a;
+    --panel:#0b0f0c;
+    --grid:#1c2620;
+    --grid-bright:#2c3a32;
+    --dim:#5c6b60;
+    --bright:#e8f0e4;
+    --amber:#ffb000;
+    --bull:#00e08a;
+    --bear:#ff4d4d;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{
+    background:var(--void);
+    color:var(--bright);
+    font-family:'JetBrains Mono', monospace;
+    font-size:13px;
+    min-height:100vh;
+  }
+  body{
+    background-image:
+      linear-gradient(var(--void), var(--void)),
+      repeating-linear-gradient(0deg, rgba(0,255,150,0.015) 0px, rgba(0,255,150,0.015) 1px, transparent 1px, transparent 3px);
+    padding:14px;
+  }
+  .tabular{ font-variant-numeric: tabular-nums; }
+
+  /* ---------- BOOT ---------- */
+  #boot{
+    max-width:900px; margin:60px auto; padding:20px;
+    color:var(--bull); white-space:pre-wrap; line-height:1.6;
+  }
+  #boot .cursor{display:inline-block; width:8px; background:var(--bull); animation:blink 1s steps(1) infinite;}
+  @keyframes blink{ 50%{opacity:0;} }
+
+  /* ---------- SHELL ---------- */
+  #shell{ display:none; max-width:1400px; margin:0 auto; }
+  #shell.show{ display:block; animation:fadein .4s ease; }
+  @keyframes fadein{ from{opacity:0;} to{opacity:1;} }
+
+  .ticker{
+    display:flex; align-items:center; gap:20px;
+    border:1px solid var(--grid-bright); background:var(--panel);
+    padding:10px 16px; margin-bottom:10px; overflow:hidden;
+  }
+  .ticker .brand{ font-weight:800; letter-spacing:3px; color:var(--amber); }
+  .ticker .sym{ color:var(--dim); letter-spacing:2px; }
+  .ticker .px{ font-size:22px; font-weight:700; }
+  .ticker .chg{ font-weight:700; }
+  .ticker .up{ color:var(--bull); }
+  .ticker .down{ color:var(--bear); }
+  .dot{ width:8px; height:8px; border-radius:50%; background:var(--dim); display:inline-block; }
+  .dot.live{ background:var(--bull); animation:pulse 1.4s infinite; box-shadow:0 0 6px var(--bull); }
+  @keyframes pulse{ 0%,100%{opacity:1;} 50%{opacity:.25;} }
+  .spacer{ flex:1; }
+  .clock{ color:var(--dim); letter-spacing:1px; }
+
+  .config{
+    display:flex; flex-wrap:wrap; gap:10px; align-items:center;
+    border:1px solid var(--grid); background:var(--panel);
+    padding:10px 16px; margin-bottom:10px;
+  }
+  .config label{ color:var(--dim); letter-spacing:1px; font-size:11px; margin-right:6px; }
+  .config input, .config select{
+    background:var(--void); border:1px solid var(--grid-bright); color:var(--bright);
+    font-family:inherit; font-size:12px; padding:6px 8px; outline:none;
+  }
+  .config input:focus, .config select:focus{ border-color:var(--amber); }
+  .config input[type=text]{ width:220px; }
+  button{
+    background:var(--void); border:1px solid var(--bull); color:var(--bull);
+    font-family:inherit; font-weight:700; letter-spacing:1px; font-size:11px;
+    padding:7px 14px; cursor:pointer;
+  }
+  button:hover{ background:var(--bull); color:var(--void); }
+  button:disabled{ opacity:.4; cursor:default; }
+  button:disabled:hover{ background:var(--void); color:var(--bull); }
+  button.ghost{ border-color:var(--grid-bright); color:var(--dim); }
+  button.ghost:hover{ background:var(--grid-bright); color:var(--bright); }
+  button.active{ background:var(--amber); border-color:var(--amber); color:var(--void); }
+
+  .grid3{ display:grid; grid-template-columns: 260px 1fr 300px; gap:10px; margin-bottom:10px; }
+  @media (max-width: 980px){ .grid3{ grid-template-columns:1fr; } }
+
+  .panel{ border:1px solid var(--grid); background:var(--panel); display:flex; flex-direction:column; }
+  .panel-head{
+    border-bottom:1px solid var(--grid); padding:8px 12px;
+    color:var(--amber); letter-spacing:2px; font-size:11px; font-weight:700;
+    display:flex; justify-content:space-between;
+  }
+  .panel-body{ padding:12px; flex:1; }
+
+  .row{ display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px dashed var(--grid); font-size:12.5px;}
+  .row:last-child{ border-bottom:none; }
+  .row .k{ color:var(--dim); letter-spacing:.5px; }
+  .row .v{ font-weight:700; }
+  .v.bull{ color:var(--bull); }
+  .v.bear{ color:var(--bear); }
+  .v.amber{ color:var(--amber); }
+
+  canvas{ width:100%; height:220px; display:block; }
+
+  .event{ padding:8px 0; border-bottom:1px dashed var(--grid); font-size:12px; }
+  .event:last-child{ border-bottom:none; }
+  .event .impact{ font-size:10px; letter-spacing:1px; font-weight:700; }
+  .impact.High{ color:var(--bear); }
+  .impact.Medium{ color:var(--amber); }
+  .event .t{ color:var(--dim); }
+
+  .blocked{ color:var(--dim); font-size:12px; line-height:1.6; }
+  .blocked .tag{ color:var(--bear); font-weight:700; letter-spacing:1px; }
+
+  .newsrow{ display:flex; gap:14px; align-items:flex-start; padding:10px 12px; border:1px solid var(--grid); background:var(--panel); margin-bottom:10px; flex-wrap:wrap;}
+  .newsrow .tilt{ min-width:180px; }
+  .newsrow ul{ list-style:none; flex:1; min-width:220px; }
+  .newsrow li{ font-size:12px; color:var(--dim); padding:3px 0; }
+  .newsrow li::before{ content:"› "; color:var(--grid-bright); }
+
+  .verdict{
+    border:1px solid var(--grid-bright); background:var(--panel);
+    padding:22px; text-align:center; margin-bottom:10px;
+  }
+  .verdict .label{ color:var(--dim); letter-spacing:3px; font-size:11px; margin-bottom:8px;}
+  .verdict .big{ font-size:38px; font-weight:800; letter-spacing:6px; }
+  .big.BULLISH{ color:var(--bull); text-shadow:0 0 18px rgba(0,224,138,.5); }
+  .big.BEARISH{ color:var(--bear); text-shadow:0 0 18px rgba(255,77,77,.5); }
+  .big.NEUTRAL, .big.MIXED{ color:var(--amber); text-shadow:0 0 18px rgba(255,176,0,.4); }
+  .verdict .note{ color:var(--dim); font-size:12px; margin-top:10px; max-width:720px; margin-left:auto; margin-right:auto; line-height:1.6; }
+  .verdict .caution{ color:var(--bear); font-weight:700; margin-top:8px; font-size:11.5px; letter-spacing:1px; }
+
+  .statusbar{ display:flex; justify-content:space-between; color:var(--dim); font-size:11px; padding:8px 4px; flex-wrap:wrap; gap:6px;}
+  .statusbar .disclaimer{ color:var(--grid-bright); }
+
+  ::selection{ background:var(--amber); color:var(--void); }
+</style>
+</head>
+<body>
+
+<div id="boot"><span id="bootText"></span><span class="cursor">&nbsp;</span></div>
+
+<div id="shell">
+
+  <div class="ticker">
+    <span class="brand">GOLD TERMINAL</span>
+    <span class="sym">XAU/USD</span>
+    <span class="px tabular" id="tPrice">-- . --</span>
+    <span class="chg tabular" id="tChange">--</span>
+    <span class="dot" id="tDot"></span>
+    <span class="spacer"></span>
+    <span class="clock tabular" id="tClock">--:--:--</span>
+  </div>
+
+  <div class="config">
+    <div><label>NEWS FEED</label><span style="color:var(--dim); font-size:11px;">KEY HARDCODED</span></div>
+    <div><label>BAR SIZE</label>
+      <select id="interval">
+        <option value="5">5min</option>
+        <option value="15" selected>15min</option>
+        <option value="60">1h</option>
+      </select>
+    </div>
+    <button id="connectBtn">REFRESH</button>
+    <button id="autoBtn" class="ghost">AUTO-REFRESH: OFF</button>
+    <span class="spacer"></span>
+    <span id="connState" style="color:var(--dim); font-size:11px; letter-spacing:1px;">BOOTING</span>
+  </div>
+
+  <div class="grid3">
+    <div class="panel">
+      <div class="panel-head">TECHNICALS <span id="techTf">15min</span></div>
+      <div class="panel-body" id="techBody">
+        <div class="row"><span class="k">PRICE</span><span class="v tabular">—</span></div>
+        <div class="row"><span class="k">EMA20</span><span class="v tabular">—</span></div>
+        <div class="row"><span class="k">EMA50</span><span class="v tabular">—</span></div>
+        <div class="row"><span class="k">RSI14</span><span class="v tabular">—</span></div>
+        <div class="row"><span class="k">ATR14</span><span class="v tabular">—</span></div>
+        <div class="row"><span class="k">TREND</span><span class="v">—</span></div>
+        <div class="row"><span class="k">MOMENTUM</span><span class="v">—</span></div>
+        <div class="row"><span class="k">SUPPORT</span><span class="v tabular">—</span></div>
+        <div class="row"><span class="k">RESISTANCE</span><span class="v tabular">—</span></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">PRICE // LAST 150 BARS <span id="chartMeta"></span></div>
+      <div class="panel-body"><canvas id="chart"></canvas></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">CALENDAR // ±24H USD</div>
+      <div class="panel-body" id="calBody">
+        <div class="blocked">AWAITING CONNECTION.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="newsrow">
+    <div class="tilt">
+      <div class="row" style="border:none;"><span class="k">NEWS TILT</span><span class="v amber" id="newsTilt">—</span></div>
+      <div class="row" style="border:none;"><span class="k">BULL / BEAR HITS</span><span class="v tabular" id="newsHits">— / —</span></div>
+    </div>
+    <ul id="newsList"><li>Awaiting connection.</li></ul>
+  </div>
+
+  <div class="verdict">
+    <div class="label">COMBINED BIAS</div>
+    <div class="big NEUTRAL" id="verdictBig">— — —</div>
+    <div class="note" id="verdictNote">Connect with a Twelve Data API key to generate a live read.</div>
+    <div class="caution" id="verdictCaution" style="display:none;"></div>
+  </div>
+
+  <div class="statusbar">
+    <span id="lastUpdate">LAST UPDATE: —</span>
+    <span class="disclaimer">PRICE: XAUS.COM INDICATIVE MID-MARKET, NOT A TRADABLE QUOTE · DECISION SUPPORT ONLY · NOT FINANCIAL ADVICE</span>
+  </div>
+
+</div>
+
+<script>
+/* ============================= BOOT SEQUENCE ============================= */
+const bootLines = [
+  "> INITIALIZING GOLD TERMINAL...",
+  "> LOADING INDICATOR ENGINE [EMA/RSI/ATR]... OK",
+  "> LOADING CHART BUFFER... OK",
+  "> CONNECTING TO XAUS.COM SPOT FEED... OK, NO KEY REQUIRED",
+  "> CALENDAR FEED... STANDBY",
+  "> NEWS FEED... STANDBY (OPTIONAL KEY NOT SET)",
+  "> LIVE_",
+];
+let bLine = 0, bChar = 0;
+const bootEl = document.getElementById('bootText');
+function typeBoot(){
+  if(bLine >= bootLines.length){
+    setTimeout(()=>{
+      document.getElementById('boot').style.display='none';
+      document.getElementById('shell').classList.add('show');
+      tickClock();
+      setInterval(tickClock, 1000);
+      runReport();
+    }, 350);
+    return;
+  }
+  const line = bootLines[bLine];
+  if(bChar <= line.length){
+    bootEl.textContent = bootLines.slice(0,bLine).join('\n') + (bLine>0?'\n':'') + line.slice(0,bChar);
+    bChar++;
+    setTimeout(typeBoot, 12);
+  } else {
+    bChar = 0; bLine++;
+    setTimeout(typeBoot, 120);
+  }
+}
+typeBoot();
+
+function tickClock(){
+  document.getElementById('tClock').textContent = new Date().toLocaleTimeString('en-GB');
+}
+
+/* ============================= STATE ============================= */
+// Hardcoded per your request. This file is for local personal use —
+// if you ever share it or push it somewhere public, swap this back
+// to an input field so the key isn't sitting in plaintext.
+const NEWS_API_KEY = "72ffc1a47d0c461c9485d0bfb41a1d8b";
+let autoTimer = null;
+let lastCandles = null;
+
+/* ============================= INDICATORS ============================= */
+function ema(values, span){
+  const k = 2/(span+1);
+  let out = [values[0]];
+  for(let i=1;i<values.length;i++) out.push(values[i]*k + out[i-1]*(1-k));
+  return out;
+}
+function rsi(closes, period=14){
+  let gains=[0], losses=[0];
+  for(let i=1;i<closes.length;i++){
+    const d = closes[i]-closes[i-1];
+    gains.push(Math.max(d,0));
+    losses.push(Math.max(-d,0));
+  }
+  let out = new Array(closes.length).fill(null);
+  for(let i=period;i<closes.length;i++){
+    const ag = gains.slice(i-period+1,i+1).reduce((a,b)=>a+b,0)/period;
+    const al = losses.slice(i-period+1,i+1).reduce((a,b)=>a+b,0)/period;
+    out[i] = al===0 ? 100 : 100 - (100/(1+ag/al));
+  }
+  return out;
+}
+function atr(highs, lows, closes, period=14){
+  let tr = [highs[0]-lows[0]];
+  for(let i=1;i<highs.length;i++){
+    tr.push(Math.max(highs[i]-lows[i], Math.abs(highs[i]-closes[i-1]), Math.abs(lows[i]-closes[i-1])));
+  }
+  let out = new Array(tr.length).fill(null);
+  for(let i=period-1;i<tr.length;i++){
+    out[i] = tr.slice(i-period+1,i+1).reduce((a,b)=>a+b,0)/period;
+  }
+  return out;
+}
+function fmt(n){ return (n===null||n===undefined||isNaN(n)) ? '—' : n.toFixed(2); }
+
+/* ============================= FETCHERS ============================= */
+async function fetchPrice(intervalMinutes){
+  // XAUS.com: free, keyless, open CORS. Raw ticks sampled ~every 2 minutes.
+  // Request enough lookback hours to give ~120-150 bars at the chosen bar size.
+  const targetBars = 130;
+  let hours = Math.ceil((targetBars * intervalMinutes) / 60);
+  hours = Math.min(Math.max(hours, 2), 48); // API allows 1..48
+
+  const url = `https://xaus.com/api/v1/intraday?symbol=xau&hours=${hours}`;
+  const res = await fetch(url);
+  const data = await res.json();
+  if(!data.points || !data.points.length) throw new Error(data.error || 'No intraday data returned.');
+
+  return binToOHLC(data.points, intervalMinutes);
+}
+
+function binToOHLC(points, intervalMinutes){
+  const binMs = intervalMinutes * 60 * 1000;
+  const bins = new Map();
+  for(const pt of points){
+    const t = new Date(pt.t).getTime();
+    const binKey = Math.floor(t / binMs) * binMs;
+    if(!bins.has(binKey)) bins.set(binKey, []);
+    bins.get(binKey).push(pt.p);
+  }
+  const keys = Array.from(bins.keys()).sort((a,b)=>a-b);
+  return keys.map(k=>{
+    const prices = bins.get(k);
+    return {
+      time: new Date(k).toISOString(),
+      open: prices[0],
+      high: Math.max(...prices),
+      low: Math.min(...prices),
+      close: prices[prices.length-1],
+    };
+  }).filter(c => c.open !== undefined);
+}
+
+async function fetchCalendar(){
+  const url = "https://nfs.faireconomy.media/ff_calendar_thisweek.json";
+  const res = await fetch(url);
+  const events = await res.json();
+  const now = Date.now();
+  const dayMs = 24*3600*1000;
+  return events
+    .filter(e => e.country==='USD' && (e.impact==='High'||e.impact==='Medium'))
+    .map(e => ({...e, ts: new Date(e.date).getTime()}))
+    .filter(e => e.ts > now - 2*3600*1000 && e.ts < now + dayMs)
+    .sort((a,b)=>a.ts-b.ts);
+}
+
+async function fetchNews(newsKey){
+  if(!newsKey) return null;
+  const url = `https://newsapi.org/v2/everything?q=gold%20price%20OR%20XAUUSD&language=en&sortBy=publishedAt&pageSize=15&apiKey=${encodeURIComponent(newsKey)}`;
+  const res = await fetch(url);
+  const data = await res.json();
+  if(!data.articles) throw new Error(data.message || 'News feed error');
+  return data.articles;
+}
+
+const BULL_WORDS = ["safe haven","flight to safety","rate cut","dovish","geopolitical","war","conflict","inflation surges","weak dollar","dollar falls","central bank buying","de-dollarization","yields fall","recession","risk-off"];
+const BEAR_WORDS = ["rate hike","hawkish","strong dollar","dollar rises","yields rise","risk-on","profit-taking","gold falls","gold slides","rally fades","jobs report beats","soft landing","ceasefire"];
+
+/* ============================= RENDER ============================= */
+function drawChart(candles){
+  const canvas = document.getElementById('chart');
+  const dpr = window.devicePixelRatio || 1;
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  canvas.width = w*dpr; canvas.height = h*dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr,dpr);
+  ctx.clearRect(0,0,w,h);
+
+  const closes = candles.map(c=>c.close);
+  const min = Math.min(...closes), max = Math.max(...closes);
+  const pad = (max-min)*0.08 || 1;
+  const yMin = min-pad, yMax = max+pad;
+
+  // grid
+  ctx.strokeStyle = 'rgba(28,38,32,0.9)';
+  ctx.lineWidth = 1;
+  for(let i=0;i<=4;i++){
+    const y = (h/4)*i;
+    ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(w,y); ctx.stroke();
+  }
+
+  // line
+  const up = closes[closes.length-1] >= closes[0];
+  ctx.strokeStyle = up ? '#00e08a' : '#ff4d4d';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  closes.forEach((c,i)=>{
+    const x = (i/(closes.length-1))*w;
+    const y = h - ((c-yMin)/(yMax-yMin))*h;
+    i===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+  });
+  ctx.stroke();
+
+  // fill
+  ctx.lineTo(w,h); ctx.lineTo(0,h); ctx.closePath();
+  const grad = ctx.createLinearGradient(0,0,0,h);
+  grad.addColorStop(0, up ? 'rgba(0,224,138,0.15)' : 'rgba(255,77,77,0.15)');
+  grad.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = grad;
+  ctx.fill();
+}
+
+function setRow(container, index, value, cls){
+  const row = container.children[index];
+  const v = row.querySelector('.v');
+  v.textContent = value;
+  v.className = 'v tabular' + (cls ? ' '+cls : '');
+}
+
+function renderTechnicals(candles, interval){
+  const closes = candles.map(c=>c.close), highs = candles.map(c=>c.high), lows = candles.map(c=>c.low);
+  const ema20 = ema(closes,20), ema50 = ema(closes,50);
+  const rsiArr = rsi(closes,14), atrArr = atr(highs,lows,closes,14);
+  const last = closes.length-1;
+  const lookback = candles.slice(-40);
+  const swingHigh = Math.max(...lookback.map(c=>c.high));
+  const swingLow = Math.min(...lookback.map(c=>c.low));
+
+  let trend, trendCls;
+  if(closes[last] > ema20[last] && ema20[last] > ema50[last]){ trend='BULLISH'; trendCls='bull'; }
+  else if(closes[last] < ema20[last] && ema20[last] < ema50[last]){ trend='BEARISH'; trendCls='bear'; }
+  else { trend='MIXED / RANGING'; trendCls='amber'; }
+
+  let momentum, momCls;
+  const r = rsiArr[last];
+  if(r>=70){ momentum='OVERBOUGHT'; momCls='bear'; }
+  else if(r<=30){ momentum='OVERSOLD'; momCls='bull'; }
+  else { momentum='NEUTRAL'; momCls='amber'; }
+
+  const body = document.getElementById('techBody');
+  setRow(body,0, fmt(closes[last]));
+  setRow(body,1, fmt(ema20[last]));
+  setRow(body,2, fmt(ema50[last]));
+  setRow(body,3, r!==undefined?r.toFixed(1):'—');
+  setRow(body,4, fmt(atrArr[last]));
+  setRow(body,5, trend, trendCls);
+  setRow(body,6, momentum, momCls);
+  setRow(body,7, fmt(swingLow));
+  setRow(body,8, fmt(swingHigh));
+  document.getElementById('techTf').textContent = interval;
+  document.getElementById('chartMeta').textContent = `${fmt(swingLow)} – ${fmt(swingHigh)}`;
+
+  const change = closes[last]-closes[0];
+  const pct = (change/closes[0]*100).toFixed(2);
+  const chgEl = document.getElementById('tChange');
+  chgEl.textContent = `${change>=0?'+':''}${change.toFixed(2)} (${pct}%)`;
+  chgEl.className = 'chg tabular ' + (change>=0?'up':'down');
+  document.getElementById('tPrice').textContent = fmt(closes[last]);
+
+  return { price:closes[last], ema20:ema20[last], ema50:ema50[last], rsi:r, atr:atrArr[last],
+           trend, momentum, swingHigh, swingLow };
+}
+
+function renderCalendar(events){
+  const body = document.getElementById('calBody');
+  if(!events.length){ body.innerHTML = '<div class="blocked">No high-impact USD events in this window.</div>'; return; }
+  body.innerHTML = events.map(e=>{
+    const t = new Date(e.ts).toLocaleString('en-GB',{weekday:'short',hour:'2-digit',minute:'2-digit'});
+    return `<div class="event"><span class="impact ${e.impact}">[${e.impact.toUpperCase()}]</span> <span class="t">${t}</span><br>${e.title}</div>`;
+  }).join('');
+}
+
+function calendarBlocked(msg){
+  document.getElementById('calBody').innerHTML =
+    `<div class="blocked"><span class="tag">LINK DOWN.</span><br>${msg}<br><br>ForexFactory blocks browser requests from most origins. The Python version of this tool (gold_bias_bot.py) fetches this feed server-side without issue.</div>`;
+}
+
+function renderNews(articles){
+  let bull=0, bear=0;
+  const items = articles.map(a=>{
+    const text = ((a.title||'')+' '+(a.description||'')).toLowerCase();
+    bull += BULL_WORDS.filter(w=>text.includes(w)).length;
+    bear += BEAR_WORDS.filter(w=>text.includes(w)).length;
+    return a.title;
+  });
+  let tilt = bull>bear ? 'LEANING BULLISH' : bear>bull ? 'LEANING BEARISH' : 'NO CLEAR TILT';
+  let cls = bull>bear ? 'bull' : bear>bull ? 'bear' : 'amber';
+  const tiltEl = document.getElementById('newsTilt');
+  tiltEl.textContent = tilt; tiltEl.className = 'v '+cls;
+  document.getElementById('newsHits').textContent = `${bull} / ${bear}`;
+  document.getElementById('newsList').innerHTML = items.slice(0,5).map(t=>`<li>${t}</li>`).join('') || '<li>No headlines returned.</li>';
+  return { tilt, bull, bear };
+}
+
+function newsBlocked(msg){
+  document.getElementById('newsTilt').textContent = 'BLOCKED';
+  document.getElementById('newsTilt').className = 'v bear';
+  document.getElementById('newsHits').textContent = '— / —';
+  document.getElementById('newsList').innerHTML = `<li>LINK DOWN — ${msg} NewsAPI's free tier blocks most browser origins. Add a key and it may still fail; the Python script fetches this server-side instead.</li>`;
+  return null;
+}
+
+function renderVerdict(tech, newsResult, events){
+  const notes = [`Technical trend is ${tech.trend.toLowerCase()}.`];
+  if(tech.momentum !== 'NEUTRAL') notes.push(`Momentum reads ${tech.momentum.toLowerCase()}.`);
+  if(newsResult) notes.push(`News tilt is ${newsResult.tilt.toLowerCase()}.`);
+
+  let verdict = 'NEUTRAL';
+  if(tech.trend==='BULLISH' && tech.momentum!=='OVERBOUGHT') verdict='BULLISH';
+  else if(tech.trend==='BEARISH' && tech.momentum!=='OVERSOLD') verdict='BEARISH';
+  else if(tech.trend==='MIXED / RANGING') verdict='NEUTRAL';
+  else verdict = tech.trend.startsWith('BULL') ? 'BULLISH' : tech.trend.startsWith('BEAR') ? 'BEARISH' : 'NEUTRAL';
+
+  const big = document.getElementById('verdictBig');
+  big.textContent = `— ${verdict} —`;
+  big.className = 'big ' + verdict;
+  const ivMin = parseInt(document.getElementById('interval').value, 10);
+  const ivLabel = ivMin < 60 ? `${ivMin}min` : `${ivMin/60}h`;
+  document.getElementById('verdictNote').textContent = notes.join(' ') +
+    ` Support ${fmt(tech.swingLow)} / resistance ${fmt(tech.swingHigh)}. Typical ${ivLabel} range (ATR) ~${fmt(tech.atr)}.`;
+
+  const caution = document.getElementById('verdictCaution');
+  if(events && events.length){
+    caution.style.display = 'block';
+    caution.textContent = `⚠ HIGH-IMPACT EVENT WITHIN 24H: ${events[0].title} — consider reduced size or waiting for the release.`;
+  } else {
+    caution.style.display = 'none';
+  }
+}
+
+/* ============================= MAIN RUN ============================= */
+async function runReport(){
+  const newsKey = NEWS_API_KEY;
+  const intervalMinutes = parseInt(document.getElementById('interval').value, 10);
+  const intervalLabel = intervalMinutes < 60 ? `${intervalMinutes}min` : `${intervalMinutes/60}h`;
+  const connState = document.getElementById('connState');
+  const connectBtn = document.getElementById('connectBtn');
+
+  connectBtn.disabled = true;
+  connState.textContent = 'FETCHING...'; connState.style.color = 'var(--amber)';
+  document.getElementById('tDot').className = 'dot';
+
+  let tech = null, events = [], newsResult = null;
+
+  try{
+    const candles = await fetchPrice(intervalMinutes);
+    if(candles.length < 5) throw new Error('Too few bars returned yet — try a smaller bar size or wait a moment.');
+    lastCandles = candles;
+    tech = renderTechnicals(candles, intervalLabel);
+    drawChart(candles);
+  }catch(e){
+    connState.textContent = 'PRICE FEED ERROR'; connState.style.color = 'var(--bear)';
+    connectBtn.disabled = false;
+    document.getElementById('verdictNote').textContent = 'Error: ' + e.message;
+    return;
+  }
+
+  try{
+    events = await fetchCalendar();
+    renderCalendar(events);
+  }catch(e){
+    calendarBlocked(e.message);
+  }
+
+  try{
+    const articles = await fetchNews(newsKey);
+    if(articles) newsResult = renderNews(articles);
+    else newsBlocked('No news key provided.');
+  }catch(e){
+    newsBlocked(e.message);
+  }
+
+  renderVerdict(tech, newsResult, events);
+
+  document.getElementById('tDot').className = 'dot live';
+  connState.textContent = 'CONNECTED'; connState.style.color = 'var(--bull)';
+  document.getElementById('lastUpdate').textContent = 'LAST UPDATE: ' + new Date().toLocaleTimeString('en-GB');
+  connectBtn.disabled = false;
+}
+
+document.getElementById('connectBtn').addEventListener('click', runReport);
+
+document.getElementById('autoBtn').addEventListener('click', function(){
+  if(autoTimer){
+    clearInterval(autoTimer); autoTimer = null;
+    this.textContent = 'AUTO-REFRESH: OFF'; this.classList.remove('active');
+  } else {
+    autoTimer = setInterval(runReport, 5*60*1000);
+    this.textContent = 'AUTO-REFRESH: ON (5M)'; this.classList.add('active');
+  }
+});
+
+window.addEventListener('resize', ()=>{ if(lastCandles) drawChart(lastCandles); });
+</script>
+</body>
+</html>
